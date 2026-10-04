@@ -42,6 +42,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 | `/manifest.json` | Addon manifest with one `series` catalog |
 | `/catalog/series/trakt-episode-list.json` | One tile per list episode, in Trakt order |
 | `/meta/series/halloween:<imdb>:<s>:<e>.json` | The one-episode series behind a tile |
+| `/status` | Episode count, where the list came from (cache or Trakt) and the last Trakt error. Use it when the catalog is empty |
 | `/refresh/<REFRESH_TOKEN>` | Optional. Forces a re-fetch from Trakt |
 
 ## Project layout

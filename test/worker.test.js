@@ -138,6 +138,7 @@ test('catalog calls Trakt with the configured list and client ID', async () => {
   assert.equal(traktCalls.length, 1);
   assert.match(traktCalls[0].url, /\/users\/someone\/lists\/spooky\/items\/episode/);
   assert.equal(traktCalls[0].headers['trakt-api-key'], 'test-client-id');
+  assert.ok(traktCalls[0].headers['User-Agent'], 'Trakt rejects requests without a User-Agent');
 });
 
 test('catalog uses the show poster when STILL_URL_TEMPLATE is empty', async () => {
@@ -198,6 +199,39 @@ test('meta still works for an episode not in the list', async () => {
   assert.equal(body.meta.name, 'S09E09');
   assert.equal(body.meta.description, 'S09E09');
   assert.equal(body.meta.videos[0].id, 'tt0096697:9:9');
+});
+
+// ---------- Status ----------
+test('status reports episodes fetched from Trakt', async () => {
+  const { res, body } = await get('/status');
+  assert.equal(res.status, 200);
+  assert.equal(body.list, 'someone/spooky');
+  assert.equal(body.episodes, 2);
+  assert.equal(body.source, 'trakt');
+  assert.equal(body.traktItems, 3);
+  assert.equal(body.error, undefined);
+});
+
+test('status reports cache hits', async () => {
+  const env = makeEnv();
+  await get('/catalog/series/trakt-episode-list.json', env);
+  const { body } = await get('/status', env);
+  assert.equal(body.source, 'cache');
+  assert.equal(body.episodes, 2);
+});
+
+test('status explains a Trakt failure', async () => {
+  mockTrakt({ status: 403 });
+  const { body } = await get('/status');
+  assert.equal(body.episodes, 0);
+  assert.equal(body.source, 'none');
+  assert.match(body.error, /Trakt responded 403 for someone\/spooky/);
+});
+
+test('status does not expose the Client ID', async () => {
+  mockTrakt({ status: 403 });
+  const { body } = await get('/status');
+  assert.doesNotMatch(JSON.stringify(body), /test-client-id/);
 });
 
 // ---------- Refresh ----------
