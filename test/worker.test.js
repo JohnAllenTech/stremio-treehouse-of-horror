@@ -180,17 +180,34 @@ test('empty catalog when Trakt fails and nothing is cached', async () => {
 });
 
 // ---------- Meta ----------
-test('meta returns a one-episode series with the real IMDb episode ID', async () => {
+test('meta lists every list episode in Trakt order with real IMDb IDs', async () => {
   const { res, body } = await get('/meta/series/halloween:tt0096697:2:3.json');
   assert.equal(res.status, 200);
   assert.equal(body.meta.id, 'halloween:tt0096697:2:3');
   assert.equal(body.meta.type, 'series');
-  assert.equal(body.meta.videos.length, 1);
-  const [video] = body.meta.videos;
-  assert.equal(video.id, 'tt0096697:2:3');
-  assert.equal(video.season, 2);
-  assert.equal(video.episode, 3);
-  assert.equal(video.title, 'Treehouse of Horror');
+  assert.deepEqual(
+    body.meta.videos.map((v) => [v.id, v.season, v.episode, v.title]),
+    [
+      ['tt0096697:2:3', 1, 1, 'Treehouse of Horror'],
+      ['tt0096697:3:7', 1, 2, 'Treehouse of Horror II'],
+    ]
+  );
+  const [first] = body.meta.videos;
+  assert.equal(first.thumbnail, 'https://episodes.metahub.space/tt0096697/2/3/w780.jpg');
+  assert.equal(first.released, '1991-10-24T00:00:00.000Z');
+  assert.match(first.overview, /^S02E03 - /);
+});
+
+test('every tile shares the same episode list so next episode follows the list', async () => {
+  const a = await get('/meta/series/halloween:tt0096697:2:3.json');
+  const b = await get('/meta/series/halloween:tt0096697:3:7.json');
+  assert.deepEqual(a.body.meta.videos, b.body.meta.videos);
+});
+
+test('meta opens the tile\'s own episode via defaultVideoId', async () => {
+  const { body } = await get('/meta/series/halloween:tt0096697:3:7.json');
+  assert.deepEqual(body.meta.behaviorHints, { defaultVideoId: 'tt0096697:3:7' });
+  assert.equal(body.meta.name, 'Treehouse of Horror II');
 });
 
 test('meta still works for an episode not in the list', async () => {
@@ -198,7 +215,11 @@ test('meta still works for an episode not in the list', async () => {
   assert.equal(res.status, 200);
   assert.equal(body.meta.name, 'S09E09');
   assert.equal(body.meta.description, 'S09E09');
-  assert.equal(body.meta.videos[0].id, 'tt0096697:9:9');
+  assert.equal(body.meta.behaviorHints.defaultVideoId, 'tt0096697:9:9');
+  assert.deepEqual(
+    body.meta.videos.map((v) => v.id),
+    ['tt0096697:9:9', 'tt0096697:2:3', 'tt0096697:3:7']
+  );
 });
 
 // ---------- Status ----------

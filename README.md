@@ -26,11 +26,14 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 
 1. The catalog endpoint fetches the Trakt list (all pages, in Trakt rank order)
    and returns one tile per episode.
-2. Each tile has the ID `halloween:<imdb>:<season>:<episode>` and opens a
-   **one-episode series**.
-3. That series' single video uses the real IMDb episode ID
-   (`<imdb>:<season>:<episode>`), so stream addons such as AIOStreams resolve
-   it like any normal episode.
+2. Each tile has the ID `halloween:<imdb>:<season>:<episode>`. Opening it
+   goes straight to that episode's streams (`behaviorHints.defaultVideoId`).
+3. Behind every tile is the **whole list as one playlist**: the detail page
+   lists every episode in Trakt order, numbered Episode 1..n, so Stremio's
+   next-episode button and binge watching move through the list. Each video
+   keeps the real IMDb episode ID (`<imdb>:<season>:<episode>`), so stream
+   addons such as AIOStreams resolve it like any normal episode. The real
+   `SxxEyy` code is shown in each episode's description.
 4. The list is cached in KV for 7 days (configurable). If Trakt fails, the
    last cached copy is served instead of an empty catalog.
 
@@ -212,7 +215,12 @@ Then open <http://localhost:8787/manifest.json>.
 
 - New list items appear only after the cache expires, unless you refresh it.
 - Episode stills rely on a third-party URL pattern (Metahub).
-- Each tile is a one-episode series, so there is one extra tap before play.
+- Auto-playing the next episode is up to Stremio: turn on its binge-watching
+  setting, and Stremio only picks the next stream automatically when it has
+  the same `bingeGroup` as the current one (set by your stream addon, e.g.
+  AIOStreams). Otherwise you get the next-episode prompt and choose a stream.
+- Watch progress is tracked per tile, so the same episode watched from two
+  different tiles counts separately.
 
 ## License
 

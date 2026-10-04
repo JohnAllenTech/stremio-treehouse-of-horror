@@ -141,29 +141,44 @@ function json(data, maxAge = 3600) {
   });
 }
 
-function buildMeta(c, it) {
+const code = (it) => `S${pad(it.season)}E${pad(it.number)}`;
+const videoId = (it) => `${it.imdb}:${it.season}:${it.number}`; // real ID used for streams
+const sameEpisode = (a, b) => videoId(a) === videoId(b);
+
+// Catalog tile: one per episode.
+function buildPreview(c, it) {
   const art = artwork(c, it);
-  const code = `S${pad(it.season)}E${pad(it.number)}`;
   return {
     id: tileId(it),
     type: 'series',
-    name: it.title || code,
+    name: it.title || code(it),
     poster: art,
     posterShape: 'landscape',
     background: art,
-    description: `${it.show ? it.show + ' ' : ''}${code}${it.overview ? ' - ' + it.overview : ''}`,
+    description: `${it.show ? it.show + ' ' : ''}${code(it)}${it.overview ? ' - ' + it.overview : ''}`,
     releaseInfo: it.year ? String(it.year) : undefined,
-    videos: [
-      {
-        id: `${it.imdb}:${it.season}:${it.number}`, // real ID used for streams
-        title: it.title || code,
-        season: it.season,
-        episode: it.number,
-        released: it.released || new Date(0).toISOString(),
-        overview: it.overview || undefined,
-        thumbnail: art,
-      },
-    ],
+  };
+}
+
+// Detail page behind a tile. It lists every episode in the Trakt list, so
+// Stremio's "next episode" and binge watching carry on through the list.
+// Episodes are numbered 1..n in list order (season 1) so Stremio's next
+// episode follows the list; each video keeps its real IMDb ID for streams.
+// defaultVideoId opens the tile's own episode straight away.
+function buildMeta(c, it, items) {
+  const playlist = items.some((x) => sameEpisode(x, it)) ? items : [it, ...items];
+  return {
+    ...buildPreview(c, it),
+    behaviorHints: { defaultVideoId: videoId(it) },
+    videos: playlist.map((ep, i) => ({
+      id: videoId(ep),
+      title: ep.title || code(ep),
+      season: 1,
+      episode: i + 1,
+      released: ep.released || new Date(0).toISOString(),
+      overview: `${code(ep)}${ep.overview ? ' - ' + ep.overview : ''}`,
+      thumbnail: artwork(c, ep),
+    })),
   };
 }
 
@@ -236,18 +251,18 @@ export default {
     // Catalog: one tile per episode
     if (parts[0] === 'catalog' && parts[1] === 'series' && parts[2] === CATALOG_ID) {
       const items = await getItems(env);
-      return json({ metas: items.map((it) => buildMeta(c, it)).map(({ videos, ...preview }) => preview) });
+      return json({ metas: items.map((it) => buildPreview(c, it)) });
     }
 
-    // Meta: the one-episode series behind a tile
+    // Meta: the detail page behind a tile
     if (parts[0] === 'meta' && parts[1] === 'series' && parts[2]?.startsWith(ID_PREFIX)) {
       const [imdb, season, number] = parts[2].slice(ID_PREFIX.length).split(':');
       const items = await getItems(env);
       const found = items.find(
         (it) => it.imdb === imdb && String(it.season) === season && String(it.number) === number
       );
-      const it = found || { imdb, season: Number(season), number: Number(number), };
-      return json({ meta: buildMeta(c, it) });
+      const it = found || { imdb, season: Number(season), number: Number(number) };
+      return json({ meta: buildMeta(c, it, items) });
     }
 
     return new Response('Not found', { status: 404, headers: CORS });
