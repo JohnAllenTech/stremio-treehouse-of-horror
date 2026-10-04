@@ -19,6 +19,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 - [Refreshing the list early](#refreshing-the-list-early)
 - [Local development](#local-development)
 - [Limitations](#limitations)
+- [License](#license)
 
 ## How it works
 
@@ -151,3 +152,7 @@ Then open <http://localhost:8787/manifest.json>.
 - New list items appear only after the cache expires, unless you refresh it.
 - Episode stills rely on a third-party URL pattern (Metahub).
 - Each tile is a one-episode series, so there is one extra tap before play.
+
+## License
+
+[MIT](LICENSE)
