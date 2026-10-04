@@ -1,7 +1,8 @@
 # Stremio Treehouse of Horror
 
 A [Stremio](https://www.stremio.com/) addon that turns a public Trakt list of
-individual episodes into a catalog with **one tile per episode**. This repo's
+individual episodes into **one show**: a single tile whose page lists every
+episode in list order. This repo's
 `wrangler.toml` points it at the list [`juicyj92/simpsons-halloween`](https://trakt.tv/users/juicyj92/lists/simpsons-halloween),
 which collects The Simpsons "Treehouse of Horror" episodes.
 
@@ -25,26 +26,16 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 ## How it works
 
 1. The catalog endpoint fetches the Trakt list (all pages, in Trakt rank order)
-   and returns one tile per episode.
-2. Each tile has the ID `halloween:<imdb>:<season>:<episode>`. Opening it
-   goes straight to that episode's streams (`behaviorHints.defaultVideoId`).
-3. With `PLAY_THROUGH_LIST = "true"`, behind every tile is the **whole list
-   as one playlist**: the detail page
-   lists every episode in Trakt order, numbered Episode 1..n, so Stremio's
-   next-episode button and binge watching move through the list. Each video
-   keeps the real IMDb episode ID (`<imdb>:<season>:<episode>`), so stream
-   addons such as AIOStreams resolve it like any normal episode. The real
-   `SxxEyy` code is shown in each episode's description.
+   and returns **one tile**, `halloween:list`, named after `LIST_NAME`.
+2. The tile's page lists every episode in Trakt order, numbered Episode 1..n,
+   with its title, thumbnail and air date. Because the episodes are numbered
+   in list order, Stremio's next-episode button and binge watching move
+   through the list.
+3. Each episode keeps its real IMDb episode ID (`<imdb>:<season>:<episode>`),
+   so stream addons such as AIOStreams resolve it like any normal episode. The
+   real `SxxEyy` code is shown at the start of each episode's description.
 4. The list is cached in KV for 7 days (configurable). If Trakt fails, the
    last cached copy is served instead of an empty catalog.
-
-### Single-tile mode
-
-With `CATALOG_MODE = "single"` the catalog has one tile named `LIST_NAME`.
-Its page lists every episode in Trakt order as Episode 1..n, each with its
-real IMDb episode ID, title, thumbnail and air date, so streams, next episode
-and binge watching work like any show. The steps above describe the
-per-episode mode.
 
 ## Endpoints
 
@@ -52,9 +43,8 @@ per-episode mode.
 |---|---|
 | `/` | Plain-text page with the manifest URL and a `stremio://` install link |
 | `/manifest.json` | Addon manifest with one `series` catalog |
-| `/catalog/series/trakt-episode-list.json` | One tile per list episode, in Trakt order |
-| `/meta/series/halloween:list.json` | Single-tile mode: the whole list as one show |
-| `/meta/series/halloween:<imdb>:<s>:<e>.json` | The one-episode series behind a tile |
+| `/catalog/series/trakt-episode-list.json` | The one tile for the list |
+| `/meta/series/halloween:list.json` | The tile's page: every episode in Trakt order |
 | `/status` | Episode count, where the list came from (cache or Trakt) and the last Trakt error. Use it when the catalog is empty |
 | `/refresh/<REFRESH_TOKEN>` | Optional. Forces a re-fetch from Trakt |
 
@@ -78,11 +68,9 @@ per-episode mode.
 |---|---|---|---|
 | `TRAKT_USER` | Yes | `juicyj92` | Trakt username that owns the list |
 | `TRAKT_LIST` | Yes | `simpsons-halloween` | List slug |
-| `LIST_NAME` | Yes | `Simpsons Halloween` | Catalog name shown in Stremio |
+| `LIST_NAME` | Yes | `Simpsons Halloween` | Name of the catalog row and the tile in Stremio |
 | `CACHE_DAYS` | No | `7` | How long the cached list is considered fresh. Defaults to `7` |
-| `CATALOG_MODE` | No | `single` | `single`: one tile (`halloween:list`) whose page lists every episode in list order, like a normal show. Anything else: one tile per episode |
-| `PLAY_THROUGH_LIST` | No | `true` | Per-episode mode only. `true`: each tile's page holds the whole list, so next episode and binge watching move through it. Anything else: each tile has only its own episode and playback stops after it |
-| `STILL_URL_TEMPLATE` | No | Not set | Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |
+| `STILL_URL_TEMPLATE` | No | Not set | Episode thumbnails. Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |
 
 The Worker has no built-in values for the three required variables. If any is
 missing, every request returns HTTP 500 with a JSON error naming what is missing.
@@ -144,7 +132,7 @@ npx wrangler secret put REFRESH_TOKEN   # optional
 
 ## Installing in Stremio
 
-This addon only provides the catalog and episode pages. To actually play
+This addon only provides the catalog tile and its episode list. To actually play
 episodes you also need a **stream addon** installed, such as AIOStreams.
 
 ### Find your manifest URL
@@ -179,8 +167,8 @@ if prompted.
 ### Where to find it
 
 After installing, the **Simpsons Halloween** row (or whatever `LIST_NAME` is
-set to) appears on the Stremio **Board** and under **Discover → Series**.
-Open a tile, pick the single episode, and your stream addon lists sources.
+set to) appears on the Stremio **Board** and under **Discover → Series**, with
+one tile. Open it, pick an episode, and your stream addon lists sources.
 
 ### Uninstalling
 
@@ -189,17 +177,19 @@ Go to **Addons → Installed**, find the addon and click **Uninstall**.
 ## Testing
 
 1. Open `/manifest.json` and confirm it loads.
-2. Open `/catalog/series/trakt-episode-list.json` and check your episodes are listed.
-3. In Stremio, open one tile (S02E03 is a good first test) and press play.
-   Streams should appear.
-4. Open one still image URL from the catalog output in a browser. If it
-   returns 404, change `STILL_URL_TEMPLATE` or set it to an empty string.
+2. Open `/status` and check the episode count matches your list.
+3. Open `/meta/series/halloween:list.json` and check your episodes are listed.
+4. In Stremio, open the tile, pick Episode 1 (S02E03) and press play. Streams
+   should appear. Let it finish, or skip to the end, to check the next episode
+   follows.
+5. Open one episode `thumbnail` URL from step 3 in a browser. If it returns
+   404, change `STILL_URL_TEMPLATE` or set it to an empty string.
 
 ## Automated tests
 
 Unit tests live in `test/` and use Node's built-in test runner, so they need
 no extra dependencies. They mock Trakt and KV and cover the manifest, catalog,
-meta, refresh and cache paths, plus the missing-config error.
+episode list, status, refresh and cache paths, plus the missing-config error.
 
 ```sh
 npm test
@@ -231,8 +221,11 @@ Then open <http://localhost:8787/manifest.json>.
   setting, and Stremio only picks the next stream automatically when it has
   the same `bingeGroup` as the current one (set by your stream addon, e.g.
   AIOStreams). Otherwise you get the next-episode prompt and choose a stream.
-- Watch progress is tracked per tile, so the same episode watched from two
-  different tiles counts separately.
+- Episodes are numbered 1..n in list order rather than by their real season,
+  so the next episode follows the list. The real `SxxEyy` is in each
+  description.
+- Newly aired episodes may have no Metahub still yet, so their thumbnail can
+  be blank for a while.
 
 ## License
 

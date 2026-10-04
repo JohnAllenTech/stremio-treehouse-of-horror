@@ -24,7 +24,6 @@ function makeEnv(overrides = {}) {
     TRAKT_LIST: 'spooky',
     LIST_NAME: 'Spooky List',
     TRAKT_CLIENT_ID: 'test-client-id',
-    PLAY_THROUGH_LIST: 'true',
     CACHE: fakeKV(),
     ...overrides,
   };
@@ -118,20 +117,22 @@ test('unknown paths return 404', async () => {
   assert.equal(res.status, 404);
 });
 
+const LIST_META = '/meta/series/halloween:list.json';
+const episodeIds = (meta) => meta.videos.map((v) => v.id);
+
 // ---------- Catalog ----------
-test('catalog returns one tile per episode in Trakt rank order', async () => {
+test('catalog has one tile for the whole list', async () => {
   const { res, body } = await get('/catalog/series/trakt-episode-list.json');
   assert.equal(res.status, 200);
-  assert.deepEqual(
-    body.metas.map((m) => m.id),
-    ['halloween:tt0096697:2:3', 'halloween:tt0096697:3:7']
-  );
-  const first = body.metas[0];
-  assert.equal(first.name, 'Treehouse of Horror');
-  assert.equal(first.posterShape, 'landscape');
-  assert.equal(first.poster, 'https://episodes.metahub.space/tt0096697/2/3/w780.jpg');
-  assert.match(first.description, /^The Simpsons S02E03 - /);
-  assert.equal(first.videos, undefined, 'catalog previews should not include videos');
+  assert.equal(body.metas.length, 1);
+  const [tile] = body.metas;
+  assert.equal(tile.id, 'halloween:list');
+  assert.equal(tile.type, 'series');
+  assert.equal(tile.name, 'Spooky List');
+  assert.equal(tile.poster, 'https://images.metahub.space/poster/medium/tt0096697/img');
+  assert.equal(tile.background, 'https://images.metahub.space/background/medium/tt0096697/img');
+  assert.match(tile.description, /^2 episodes from the Trakt list someone\/spooky/);
+  assert.equal(tile.videos, undefined, 'catalog previews should not include videos');
 });
 
 test('catalog calls Trakt with the configured list and client ID', async () => {
@@ -142,9 +143,9 @@ test('catalog calls Trakt with the configured list and client ID', async () => {
   assert.ok(traktCalls[0].headers['User-Agent'], 'Trakt rejects requests without a User-Agent');
 });
 
-test('catalog uses the show poster when STILL_URL_TEMPLATE is empty', async () => {
-  const { body } = await get('/catalog/series/trakt-episode-list.json', makeEnv({ STILL_URL_TEMPLATE: '' }));
-  assert.equal(body.metas[0].poster, 'https://images.metahub.space/poster/medium/tt0096697/img');
+test('episodes use the show poster when STILL_URL_TEMPLATE is empty', async () => {
+  const { body } = await get(LIST_META, makeEnv({ STILL_URL_TEMPLATE: '' }));
+  assert.equal(body.meta.videos[0].thumbnail, 'https://images.metahub.space/poster/medium/tt0096697/img');
 });
 
 // ---------- Cache ----------
@@ -159,9 +160,9 @@ test('a fresh cache is served without calling Trakt', async () => {
 test('a stale cache is re-fetched from Trakt', async () => {
   const env = makeEnv({ CACHE_DAYS: '1' });
   env.CACHE.store.set('list:someone:spooky', JSON.stringify({ fetchedAt: 0, items: [] }));
-  const { body } = await get('/catalog/series/trakt-episode-list.json', env);
+  const { body } = await get(LIST_META, env);
   assert.equal(traktCalls.length, 1);
-  assert.equal(body.metas.length, 2);
+  assert.equal(body.meta.videos.length, 2);
 });
 
 test('stale cache is served when Trakt fails', async () => {
@@ -169,8 +170,8 @@ test('stale cache is served when Trakt fails', async () => {
   const env = makeEnv();
   const cachedItem = { imdb: 'tt0096697', season: 4, number: 5, title: 'Cached', show: 'The Simpsons' };
   env.CACHE.store.set('list:someone:spooky', JSON.stringify({ fetchedAt: 0, items: [cachedItem] }));
-  const { body } = await get('/catalog/series/trakt-episode-list.json', env);
-  assert.deepEqual(body.metas.map((m) => m.id), ['halloween:tt0096697:4:5']);
+  const { body } = await get(LIST_META, env);
+  assert.deepEqual(episodeIds(body.meta), ['tt0096697:4:5']);
 });
 
 test('empty catalog when Trakt fails and nothing is cached', async () => {
@@ -181,11 +182,12 @@ test('empty catalog when Trakt fails and nothing is cached', async () => {
 });
 
 // ---------- Meta ----------
-test('meta lists every list episode in Trakt order with real IMDb IDs', async () => {
-  const { res, body } = await get('/meta/series/halloween:tt0096697:2:3.json');
+test('the tile page lists every episode in Trakt order with real IMDb IDs', async () => {
+  const { res, body } = await get(LIST_META);
   assert.equal(res.status, 200);
-  assert.equal(body.meta.id, 'halloween:tt0096697:2:3');
+  assert.equal(body.meta.id, 'halloween:list');
   assert.equal(body.meta.type, 'series');
+  assert.equal(body.meta.name, 'Spooky List');
   assert.deepEqual(
     body.meta.videos.map((v) => [v.id, v.season, v.episode, v.title]),
     [
@@ -196,82 +198,23 @@ test('meta lists every list episode in Trakt order with real IMDb IDs', async ()
   const [first] = body.meta.videos;
   assert.equal(first.thumbnail, 'https://episodes.metahub.space/tt0096697/2/3/w780.jpg');
   assert.equal(first.released, '1991-10-24T00:00:00.000Z');
-  assert.match(first.overview, /^S02E03 - /);
+  assert.match(first.overview, /^S02E03 - Treehouse of Horror overview/);
 });
 
-test('every tile shares the same episode list so next episode follows the list', async () => {
-  const a = await get('/meta/series/halloween:tt0096697:2:3.json');
-  const b = await get('/meta/series/halloween:tt0096697:3:7.json');
-  assert.deepEqual(a.body.meta.videos, b.body.meta.videos);
+test('the tile page opens the episode list, not a single episode', async () => {
+  const { body } = await get(LIST_META);
+  assert.equal(body.meta.behaviorHints, undefined);
 });
 
-test('meta opens the tile\'s own episode via defaultVideoId', async () => {
-  const { body } = await get('/meta/series/halloween:tt0096697:3:7.json');
-  assert.deepEqual(body.meta.behaviorHints, { defaultVideoId: 'tt0096697:3:7' });
-  assert.equal(body.meta.name, 'Treehouse of Horror II');
+test('per-episode meta IDs are no longer served', async () => {
+  const { res } = await get('/meta/series/halloween:tt0096697:2:3.json');
+  assert.equal(res.status, 404);
 });
 
-test('meta still works for an episode not in the list', async () => {
-  const { res, body } = await get('/meta/series/halloween:tt0096697:9:9.json');
-  assert.equal(res.status, 200);
-  assert.equal(body.meta.name, 'S09E09');
-  assert.equal(body.meta.description, 'S09E09');
-  assert.equal(body.meta.behaviorHints.defaultVideoId, 'tt0096697:9:9');
-  assert.deepEqual(
-    body.meta.videos.map((v) => v.id),
-    ['tt0096697:9:9', 'tt0096697:2:3', 'tt0096697:3:7']
-  );
-});
-
-test('with PLAY_THROUGH_LIST off, a tile lists only its own episode', async () => {
-  const { body } = await get('/meta/series/halloween:tt0096697:3:7.json', makeEnv({ PLAY_THROUGH_LIST: 'false' }));
-  assert.deepEqual(body.meta.videos.map((v) => [v.id, v.season, v.episode]), [['tt0096697:3:7', 1, 1]]);
-  assert.equal(body.meta.behaviorHints.defaultVideoId, 'tt0096697:3:7');
-});
-
-test('PLAY_THROUGH_LIST is off unless set to "true"', async () => {
-  const { body } = await get('/meta/series/halloween:tt0096697:2:3.json', makeEnv({ PLAY_THROUGH_LIST: undefined }));
-  assert.equal(body.meta.videos.length, 1);
-});
-
-// ---------- Single-tile mode ----------
-const single = (o = {}) => makeEnv({ CATALOG_MODE: 'single', ...o });
-
-test('single mode: catalog has one tile for the whole list', async () => {
-  const { body } = await get('/catalog/series/trakt-episode-list.json', single());
-  assert.equal(body.metas.length, 1);
-  const [tile] = body.metas;
-  assert.equal(tile.id, 'halloween:list');
-  assert.equal(tile.name, 'Spooky List');
-  assert.equal(tile.poster, 'https://images.metahub.space/poster/medium/tt0096697/img');
-  assert.match(tile.description, /^2 episodes from the Trakt list someone\/spooky/);
-  assert.equal(tile.videos, undefined);
-});
-
-test('single mode: the tile page lists every episode in list order with real IDs', async () => {
-  const { body } = await get('/meta/series/halloween:list.json', single());
-  assert.equal(body.meta.id, 'halloween:list');
-  assert.equal(body.meta.behaviorHints, undefined, 'should open the episode list, not one episode');
-  assert.deepEqual(
-    body.meta.videos.map((v) => [v.id, v.season, v.episode, v.title]),
-    [
-      ['tt0096697:2:3', 1, 1, 'Treehouse of Horror'],
-      ['tt0096697:3:7', 1, 2, 'Treehouse of Horror II'],
-    ]
-  );
-  assert.equal(body.meta.videos[0].thumbnail, 'https://episodes.metahub.space/tt0096697/2/3/w780.jpg');
-});
-
-test('single mode: empty catalog when the list is empty', async () => {
+test('the tile page is empty when the list is empty', async () => {
   mockTrakt({ items: [] });
-  const { body } = await get('/catalog/series/trakt-episode-list.json', single());
-  assert.deepEqual(body.metas, []);
-});
-
-test('single mode: per-episode meta URLs still work', async () => {
-  const { res, body } = await get('/meta/series/halloween:tt0096697:2:3.json', single());
-  assert.equal(res.status, 200);
-  assert.equal(body.meta.behaviorHints.defaultVideoId, 'tt0096697:2:3');
+  const { body } = await get(LIST_META);
+  assert.deepEqual(body.meta.videos, []);
 });
 
 // ---------- Status ----------

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Stremio addon: one tile per episode from a Trakt list, running on Cloudflare Workers",
+  "description": "Stremio addon: a Trakt list of episodes as one show, running on Cloudflare Workers",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
