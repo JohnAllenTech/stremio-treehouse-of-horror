@@ -16,6 +16,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 - [Setup and deployment](#setup-and-deployment)
 - [Installing in Stremio](#installing-in-stremio)
 - [Testing](#testing)
+- [Automated tests](#automated-tests)
 - [Refreshing the list early](#refreshing-the-list-early)
 - [Local development](#local-development)
 - [Limitations](#limitations)
@@ -48,6 +49,8 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 ```
 .
 ├── src/worker.js     # The whole addon: config, Trakt fetch, KV cache, routing
+├── test/             # Unit tests (node --test)
+├── .github/workflows # CI: runs the tests on pull requests
 ├── wrangler.toml     # Worker name, plain config vars, KV binding
 ├── package.json      # Wrangler dev dependency and npm scripts
 └── README.md
@@ -136,6 +139,19 @@ npx wrangler secret put REFRESH_TOKEN   # optional
    Streams should appear.
 4. Open one still image URL from the catalog output in a browser. If it
    returns 404, change `STILL_URL_TEMPLATE` or set it to an empty string.
+
+## Automated tests
+
+Unit tests live in `test/` and use Node's built-in test runner, so they need
+no extra dependencies. They mock Trakt and KV and cover the manifest, catalog,
+meta, refresh and cache paths, plus the missing-config error.
+
+```sh
+npm test
+```
+
+GitHub Actions runs them on every pull request and every push to `main`
+(see `.github/workflows/test.yml`).
 
 ## Refreshing the list early
 
