@@ -1,5 +1,5 @@
 {
-  "name": "simpsons-treehouse-addon",
+  "name": "stremio-treehouse-of-horror",
   "version": "1.0.0",
   "private": true,
   "description": "Stremio addon: one tile per episode from a Trakt list, running on Cloudflare Workers",

@@ -1,4 +1,4 @@
-name = "simpsons-treehouse-addon"
+name = "stremio-treehouse-of-horror"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
 

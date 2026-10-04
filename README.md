@@ -1,4 +1,4 @@
-# Simpsons Treehouse Addon
+# Stremio Treehouse of Horror
 
 A [Stremio](https://www.stremio.com/) addon that turns a public Trakt list of
 individual episodes into a catalog with **one tile per episode**. By default it
