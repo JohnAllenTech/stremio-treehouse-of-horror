@@ -1,0 +1,17 @@
+name = "simpsons-treehouse-addon"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+# Plain (non-secret) config. TRAKT_CLIENT_ID is stored as a Worker secret,
+# so it is deliberately NOT listed here.
+[vars]
+TRAKT_USER = "juicyj92"
+TRAKT_LIST = "simpsons-halloween"
+LIST_NAME = "Simpsons Halloween"
+CACHE_DAYS = "7"
+
+# Weekly cache. Replace the id with your KV namespace ID
+# (create one with: npx wrangler kv namespace create CACHE)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
