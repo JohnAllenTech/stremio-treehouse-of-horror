@@ -4,6 +4,7 @@
 
 const CATALOG_ID = 'trakt-episode-list';
 const ID_PREFIX = 'halloween:';
+const LIST_TILE_ID = `${ID_PREFIX}list`; // the single tile in CATALOG_MODE "single"
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,8 @@ function getConfig(env) {
     // "true": every tile's page lists the whole list so next episode / binge
     // watching carries on through it. Anything else: just the tile's episode.
     playThroughList: env.PLAY_THROUGH_LIST === 'true',
+    // "single": one tile for the whole list. Anything else: one tile per episode.
+    singleTile: env.CATALOG_MODE === 'single',
     // {imdb} {season} {episode} are replaced. Leave empty to use the show poster.
     stillTemplate:
       env.STILL_URL_TEMPLATE ?? 'https://episodes.metahub.space/{imdb}/{season}/{episode}/w780.jpg',
@@ -177,16 +180,38 @@ function buildMeta(c, it, items) {
   return {
     ...buildPreview(c, it),
     behaviorHints: { defaultVideoId: videoId(it) },
-    videos: playlist.map((ep, i) => ({
-      id: videoId(ep),
-      title: ep.title || code(ep),
-      season: 1,
-      episode: i + 1,
-      released: ep.released || new Date(0).toISOString(),
-      overview: `${code(ep)}${ep.overview ? ' - ' + ep.overview : ''}`,
-      thumbnail: artwork(c, ep),
-    })),
+    videos: buildVideos(c, playlist),
   };
+}
+
+// Episodes as Stremio videos, numbered 1..n in list order.
+function buildVideos(c, playlist) {
+  return playlist.map((ep, i) => ({
+    id: videoId(ep),
+    title: ep.title || code(ep),
+    season: 1,
+    episode: i + 1,
+    released: ep.released || new Date(0).toISOString(),
+    overview: `${code(ep)}${ep.overview ? ' - ' + ep.overview : ''}`,
+    thumbnail: artwork(c, ep),
+  }));
+}
+
+// CATALOG_MODE "single": one tile whose page is the whole list, like a normal show.
+function buildListPreview(c, items) {
+  const first = items[0];
+  return {
+    id: LIST_TILE_ID,
+    type: 'series',
+    name: c.listName,
+    poster: first ? `https://images.metahub.space/poster/medium/${first.imdb}/img` : undefined,
+    background: first ? `https://images.metahub.space/background/medium/${first.imdb}/img` : undefined,
+    description: `${items.length} episodes from the Trakt list ${c.user}/${c.list}, in list order.`,
+  };
+}
+
+function buildListMeta(c, items) {
+  return { ...buildListPreview(c, items), videos: buildVideos(c, items) };
 }
 
 function manifest(c) {
@@ -194,7 +219,9 @@ function manifest(c) {
     id: `community.trakt.episodelist.${c.user}.${c.list}`.replace(/[^a-zA-Z0-9.]/g, ''),
     version: '1.0.0',
     name: `${c.listName} (Trakt)`,
-    description: 'One tile per episode from a Trakt list of episodes.',
+    description: c.singleTile
+      ? 'A Trakt list of episodes as one show, in list order.'
+      : 'One tile per episode from a Trakt list of episodes.',
     resources: ['catalog', 'meta'],
     types: ['series'],
     idPrefixes: [ID_PREFIX],
@@ -255,10 +282,16 @@ export default {
       return json({ refreshed: true, episodes: items.length }, 0);
     }
 
-    // Catalog: one tile per episode
+    // Catalog: one tile for the list, or one tile per episode
     if (parts[0] === 'catalog' && parts[1] === 'series' && parts[2] === CATALOG_ID) {
       const items = await getItems(env);
+      if (c.singleTile) return json({ metas: items.length > 0 ? [buildListPreview(c, items)] : [] });
       return json({ metas: items.map((it) => buildPreview(c, it)) });
+    }
+
+    // Meta: the single list tile's page
+    if (parts[0] === 'meta' && parts[1] === 'series' && parts[2] === LIST_TILE_ID) {
+      return json({ meta: buildListMeta(c, await getItems(env)) });
     }
 
     // Meta: the detail page behind a tile

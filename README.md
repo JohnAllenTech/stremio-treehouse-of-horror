@@ -38,6 +38,14 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 4. The list is cached in KV for 7 days (configurable). If Trakt fails, the
    last cached copy is served instead of an empty catalog.
 
+### Single-tile mode
+
+With `CATALOG_MODE = "single"` the catalog has one tile named `LIST_NAME`.
+Its page lists every episode in Trakt order as Episode 1..n, each with its
+real IMDb episode ID, title, thumbnail and air date, so streams, next episode
+and binge watching work like any show. The steps above describe the
+per-episode mode.
+
 ## Endpoints
 
 | Endpoint | Returns |
@@ -45,6 +53,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 | `/` | Plain-text page with the manifest URL and a `stremio://` install link |
 | `/manifest.json` | Addon manifest with one `series` catalog |
 | `/catalog/series/trakt-episode-list.json` | One tile per list episode, in Trakt order |
+| `/meta/series/halloween:list.json` | Single-tile mode: the whole list as one show |
 | `/meta/series/halloween:<imdb>:<s>:<e>.json` | The one-episode series behind a tile |
 | `/status` | Episode count, where the list came from (cache or Trakt) and the last Trakt error. Use it when the catalog is empty |
 | `/refresh/<REFRESH_TOKEN>` | Optional. Forces a re-fetch from Trakt |
@@ -71,7 +80,8 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 | `TRAKT_LIST` | Yes | `simpsons-halloween` | List slug |
 | `LIST_NAME` | Yes | `Simpsons Halloween` | Catalog name shown in Stremio |
 | `CACHE_DAYS` | No | `7` | How long the cached list is considered fresh. Defaults to `7` |
-| `PLAY_THROUGH_LIST` | No | `true` | `true`: each tile's page holds the whole list, so next episode and binge watching move through it. Anything else: each tile has only its own episode and playback stops after it |
+| `CATALOG_MODE` | No | `single` | `single`: one tile (`halloween:list`) whose page lists every episode in list order, like a normal show. Anything else: one tile per episode |
+| `PLAY_THROUGH_LIST` | No | `true` | Per-episode mode only. `true`: each tile's page holds the whole list, so next episode and binge watching move through it. Anything else: each tile has only its own episode and playback stops after it |
 | `STILL_URL_TEMPLATE` | No | Not set | Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |
 
 The Worker has no built-in values for the three required variables. If any is

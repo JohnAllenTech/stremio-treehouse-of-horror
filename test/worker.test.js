@@ -234,6 +234,46 @@ test('PLAY_THROUGH_LIST is off unless set to "true"', async () => {
   assert.equal(body.meta.videos.length, 1);
 });
 
+// ---------- Single-tile mode ----------
+const single = (o = {}) => makeEnv({ CATALOG_MODE: 'single', ...o });
+
+test('single mode: catalog has one tile for the whole list', async () => {
+  const { body } = await get('/catalog/series/trakt-episode-list.json', single());
+  assert.equal(body.metas.length, 1);
+  const [tile] = body.metas;
+  assert.equal(tile.id, 'halloween:list');
+  assert.equal(tile.name, 'Spooky List');
+  assert.equal(tile.poster, 'https://images.metahub.space/poster/medium/tt0096697/img');
+  assert.match(tile.description, /^2 episodes from the Trakt list someone\/spooky/);
+  assert.equal(tile.videos, undefined);
+});
+
+test('single mode: the tile page lists every episode in list order with real IDs', async () => {
+  const { body } = await get('/meta/series/halloween:list.json', single());
+  assert.equal(body.meta.id, 'halloween:list');
+  assert.equal(body.meta.behaviorHints, undefined, 'should open the episode list, not one episode');
+  assert.deepEqual(
+    body.meta.videos.map((v) => [v.id, v.season, v.episode, v.title]),
+    [
+      ['tt0096697:2:3', 1, 1, 'Treehouse of Horror'],
+      ['tt0096697:3:7', 1, 2, 'Treehouse of Horror II'],
+    ]
+  );
+  assert.equal(body.meta.videos[0].thumbnail, 'https://episodes.metahub.space/tt0096697/2/3/w780.jpg');
+});
+
+test('single mode: empty catalog when the list is empty', async () => {
+  mockTrakt({ items: [] });
+  const { body } = await get('/catalog/series/trakt-episode-list.json', single());
+  assert.deepEqual(body.metas, []);
+});
+
+test('single mode: per-episode meta URLs still work', async () => {
+  const { res, body } = await get('/meta/series/halloween:tt0096697:2:3.json', single());
+  assert.equal(res.status, 200);
+  assert.equal(body.meta.behaviorHints.defaultVideoId, 'tt0096697:2:3');
+});
+
 // ---------- Status ----------
 test('status reports episodes fetched from Trakt', async () => {
   const { res, body } = await get('/status');
