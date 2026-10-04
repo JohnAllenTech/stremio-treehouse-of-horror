@@ -99,13 +99,14 @@ commit them. The addon does not use your Trakt Client *Secret*.
 
 ### 2. Create the KV namespace
 
+`wrangler.toml` already points at this project's namespace
+(`stremio-treehouse-of-horror-CACHE`). If you deploy to a different
+Cloudflare account, create your own and put its `id` in `wrangler.toml`:
+
 ```sh
 npm install
 npx wrangler kv namespace create CACHE
 ```
-
-Paste the returned `id` into `wrangler.toml`, replacing
-`REPLACE_WITH_KV_NAMESPACE_ID`.
 
 ### 3. Deploy from GitHub
 
