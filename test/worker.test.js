@@ -24,6 +24,7 @@ function makeEnv(overrides = {}) {
     TRAKT_LIST: 'spooky',
     LIST_NAME: 'Spooky List',
     TRAKT_CLIENT_ID: 'test-client-id',
+    PLAY_THROUGH_LIST: 'true',
     CACHE: fakeKV(),
     ...overrides,
   };
@@ -220,6 +221,17 @@ test('meta still works for an episode not in the list', async () => {
     body.meta.videos.map((v) => v.id),
     ['tt0096697:9:9', 'tt0096697:2:3', 'tt0096697:3:7']
   );
+});
+
+test('with PLAY_THROUGH_LIST off, a tile lists only its own episode', async () => {
+  const { body } = await get('/meta/series/halloween:tt0096697:3:7.json', makeEnv({ PLAY_THROUGH_LIST: 'false' }));
+  assert.deepEqual(body.meta.videos.map((v) => [v.id, v.season, v.episode]), [['tt0096697:3:7', 1, 1]]);
+  assert.equal(body.meta.behaviorHints.defaultVideoId, 'tt0096697:3:7');
+});
+
+test('PLAY_THROUGH_LIST is off unless set to "true"', async () => {
+  const { body } = await get('/meta/series/halloween:tt0096697:2:3.json', makeEnv({ PLAY_THROUGH_LIST: undefined }));
+  assert.equal(body.meta.videos.length, 1);
 });
 
 // ---------- Status ----------

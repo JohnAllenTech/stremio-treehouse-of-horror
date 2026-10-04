@@ -10,6 +10,9 @@ TRAKT_USER = "juicyj92"
 TRAKT_LIST = "simpsons-halloween"
 LIST_NAME = "Simpsons Halloween"
 CACHE_DAYS = "7"
+# "true": each tile's page lists the whole list so next episode / autoplay works.
+# "false": each tile shows only its own episode (no next episode).
+PLAY_THROUGH_LIST = "true"
 
 # Weekly cache. KV namespace "stremio-treehouse-of-horror-CACHE".
 # To use your own, create one with: npx wrangler kv namespace create CACHE

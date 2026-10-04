@@ -20,6 +20,9 @@ function getConfig(env) {
     listName: env.LIST_NAME,
     clientId: env.TRAKT_CLIENT_ID,
     cacheMs: days * 24 * 60 * 60 * 1000,
+    // "true": every tile's page lists the whole list so next episode / binge
+    // watching carries on through it. Anything else: just the tile's episode.
+    playThroughList: env.PLAY_THROUGH_LIST === 'true',
     // {imdb} {season} {episode} are replaced. Leave empty to use the show poster.
     stillTemplate:
       env.STILL_URL_TEMPLATE ?? 'https://episodes.metahub.space/{imdb}/{season}/{episode}/w780.jpg',
@@ -160,13 +163,17 @@ function buildPreview(c, it) {
   };
 }
 
-// Detail page behind a tile. It lists every episode in the Trakt list, so
-// Stremio's "next episode" and binge watching carry on through the list.
-// Episodes are numbered 1..n in list order (season 1) so Stremio's next
-// episode follows the list; each video keeps its real IMDb ID for streams.
+// Detail page behind a tile. With PLAY_THROUGH_LIST it lists every episode in
+// the Trakt list, so Stremio's "next episode" and binge watching carry on
+// through the list; otherwise just the tile's own episode. Episodes are
+// numbered 1..n in list order (season 1) so Stremio's next episode follows
+// the list; each video keeps its real IMDb ID for streams.
 // defaultVideoId opens the tile's own episode straight away.
 function buildMeta(c, it, items) {
-  const playlist = items.some((x) => sameEpisode(x, it)) ? items : [it, ...items];
+  let playlist = [it];
+  if (c.playThroughList) {
+    playlist = items.some((x) => sameEpisode(x, it)) ? items : [it, ...items];
+  }
   return {
     ...buildPreview(c, it),
     behaviorHints: { defaultVideoId: videoId(it) },

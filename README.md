@@ -28,7 +28,8 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
    and returns one tile per episode.
 2. Each tile has the ID `halloween:<imdb>:<season>:<episode>`. Opening it
    goes straight to that episode's streams (`behaviorHints.defaultVideoId`).
-3. Behind every tile is the **whole list as one playlist**: the detail page
+3. With `PLAY_THROUGH_LIST = "true"`, behind every tile is the **whole list
+   as one playlist**: the detail page
    lists every episode in Trakt order, numbered Episode 1..n, so Stremio's
    next-episode button and binge watching move through the list. Each video
    keeps the real IMDb episode ID (`<imdb>:<season>:<episode>`), so stream
@@ -70,6 +71,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 | `TRAKT_LIST` | Yes | `simpsons-halloween` | List slug |
 | `LIST_NAME` | Yes | `Simpsons Halloween` | Catalog name shown in Stremio |
 | `CACHE_DAYS` | No | `7` | How long the cached list is considered fresh. Defaults to `7` |
+| `PLAY_THROUGH_LIST` | No | `true` | `true`: each tile's page holds the whole list, so next episode and binge watching move through it. Anything else: each tile has only its own episode and playback stops after it |
 | `STILL_URL_TEMPLATE` | No | Not set | Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |
 
 The Worker has no built-in values for the three required variables. If any is
