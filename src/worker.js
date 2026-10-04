@@ -52,16 +52,20 @@ async function fetchFromTrakt(c) {
         'Content-Type': 'application/json',
         'trakt-api-version': '2',
         'trakt-api-key': c.clientId,
+        // Trakt's API sits behind Cloudflare, which rejects requests with no User-Agent.
+        'User-Agent': 'stremio-treehouse-of-horror/1.0',
       },
     });
-    if (!res.ok) throw new Error(`Trakt responded ${res.status} (is the list public?)`);
+    if (!res.ok) {
+      throw new Error(`Trakt responded ${res.status} for ${c.user}/${c.list} (is the list public and the Client ID right?)`);
+    }
 
     pageCount = Number(res.headers.get('x-pagination-page-count') || 1);
     all.push(...(await res.json()));
     page++;
   } while (page <= pageCount);
 
-  return all
+  const items = all
     .filter((i) => i.type === 'episode' && i.show?.ids?.imdb)
     .sort((a, b) => a.rank - b.rank)
     .map((i) => ({
@@ -74,27 +78,42 @@ async function fetchFromTrakt(c) {
       show: i.show.title,
       year: i.show.year,
     }));
+  return { items, rawCount: all.length };
 }
 
-async function getItems(env, { force = false } = {}) {
+// Returns the list plus where it came from, so /status can explain an empty catalog.
+async function loadList(env, { force = false } = {}) {
   const c = getConfig(env);
   const key = `list:${c.user}:${c.list}`;
 
   const cached = await env.CACHE.get(key, 'json');
   const isFresh = cached && Date.now() - cached.fetchedAt < c.cacheMs;
-  if (isFresh && !force) return cached.items;
+  if (isFresh && !force) {
+    return { items: cached.items, source: 'cache', fetchedAt: cached.fetchedAt };
+  }
 
   try {
-    const items = await fetchFromTrakt(c);
+    const { items, rawCount } = await fetchFromTrakt(c);
+    const fetchedAt = Date.now();
     if (items.length > 0) {
       // No KV expiry on purpose: keeps the last copy around as a fallback.
-      await env.CACHE.put(key, JSON.stringify({ fetchedAt: Date.now(), items }));
+      await env.CACHE.put(key, JSON.stringify({ fetchedAt, items }));
     }
-    return items;
+    return { items, source: 'trakt', fetchedAt, traktItems: rawCount };
   } catch (err) {
     console.error('Trakt fetch failed:', err.message);
-    return cached ? cached.items : []; // serve stale rather than nothing
+    // Serve stale rather than nothing.
+    return {
+      items: cached ? cached.items : [],
+      source: cached ? 'stale-cache' : 'none',
+      fetchedAt: cached?.fetchedAt,
+      error: err.message,
+    };
   }
+}
+
+async function getItems(env, opts) {
+  return (await loadList(env, opts)).items;
 }
 
 // ---------- Helpers ----------
@@ -191,6 +210,22 @@ export default {
     }
 
     if (parts[0] === 'manifest') return json(manifest(c));
+
+    // Diagnostics: episode count, where the list came from, and the last Trakt error
+    if (parts[0] === 'status') {
+      const { items, source, fetchedAt, traktItems, error } = await loadList(env);
+      return json(
+        {
+          list: `${c.user}/${c.list}`,
+          episodes: items.length,
+          source,
+          fetchedAt: fetchedAt ? new Date(fetchedAt).toISOString() : null,
+          traktItems,
+          error,
+        },
+        0
+      );
+    }
 
     // Optional: /refresh/<REFRESH_TOKEN> forces a re-fetch from Trakt
     if (parts[0] === 'refresh' && env.REFRESH_TOKEN && parts[1] === env.REFRESH_TOKEN) {
