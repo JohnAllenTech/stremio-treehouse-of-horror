@@ -15,15 +15,22 @@ const CORS = {
 function getConfig(env) {
   const days = Number(env.CACHE_DAYS || 7);
   return {
-    user: env.TRAKT_USER || 'juicyj92',
-    list: env.TRAKT_LIST || 'simpsons-halloween',
-    listName: env.LIST_NAME || 'Simpsons Halloween',
+    user: env.TRAKT_USER,
+    list: env.TRAKT_LIST,
+    listName: env.LIST_NAME,
     clientId: env.TRAKT_CLIENT_ID,
     cacheMs: days * 24 * 60 * 60 * 1000,
     // {imdb} {season} {episode} are replaced. Leave empty to use the show poster.
     stillTemplate:
       env.STILL_URL_TEMPLATE ?? 'https://episodes.metahub.space/{imdb}/{season}/{episode}/w780.jpg',
   };
+}
+
+// Required plain vars (wrangler.toml [vars]). There are no built-in defaults.
+const REQUIRED_VARS = ['TRAKT_USER', 'TRAKT_LIST', 'LIST_NAME'];
+
+function missingVars(env) {
+  return REQUIRED_VARS.filter((name) => !env[name]);
 }
 
 // ---------- Trakt + KV cache ----------
@@ -125,7 +132,7 @@ function buildMeta(c, it) {
     poster: art,
     posterShape: 'landscape',
     background: art,
-    description: `${it.show} ${code}${it.overview ? ' - ' + it.overview : ''}`,
+    description: `${it.show ? it.show + ' ' : ''}${code}${it.overview ? ' - ' + it.overview : ''}`,
     releaseInfo: it.year ? String(it.year) : undefined,
     videos: [
       {
@@ -158,6 +165,14 @@ function manifest(c) {
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+
+    const missing = missingVars(env);
+    if (missing.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `Missing required config: ${missing.join(', ')}. Set them in wrangler.toml [vars].` }),
+        { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const url = new URL(request.url);
     const c = getConfig(env);
@@ -196,7 +211,7 @@ export default {
       const found = items.find(
         (it) => it.imdb === imdb && String(it.season) === season && String(it.number) === number
       );
-      const it = found || { imdb, season: Number(season), number: Number(number), show: 'The Simpsons' };
+      const it = found || { imdb, season: Number(season), number: Number(number), };
       return json({ meta: buildMeta(c, it) });
     }
 

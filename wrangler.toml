@@ -2,8 +2,9 @@ name = "stremio-treehouse-of-horror"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
 
-# Plain (non-secret) config. TRAKT_CLIENT_ID is stored as a Worker secret,
-# so it is deliberately NOT listed here.
+# Plain (non-secret) config. TRAKT_USER, TRAKT_LIST and LIST_NAME are required:
+# the Worker has no built-in defaults and returns an error if any is missing.
+# TRAKT_CLIENT_ID is stored as a Worker secret, so it is deliberately NOT listed here.
 [vars]
 TRAKT_USER = "juicyj92"
 TRAKT_LIST = "simpsons-halloween"

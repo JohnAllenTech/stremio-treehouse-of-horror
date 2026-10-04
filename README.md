@@ -1,8 +1,8 @@
 # Stremio Treehouse of Horror
 
 A [Stremio](https://www.stremio.com/) addon that turns a public Trakt list of
-individual episodes into a catalog with **one tile per episode**. By default it
-uses the list [`juicyj92/simpsons-halloween`](https://trakt.tv/users/juicyj92/lists/simpsons-halloween),
+individual episodes into a catalog with **one tile per episode**. This repo's
+`wrangler.toml` points it at the list [`juicyj92/simpsons-halloween`](https://trakt.tv/users/juicyj92/lists/simpsons-halloween),
 which collects The Simpsons "Treehouse of Horror" episodes.
 
 It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
@@ -57,13 +57,16 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 
 ### Plain variables (`wrangler.toml` → `[vars]`)
 
-| Variable | Default | Notes |
-|---|---|---|
-| `TRAKT_USER` | `juicyj92` | Trakt username that owns the list |
-| `TRAKT_LIST` | `simpsons-halloween` | List slug |
-| `LIST_NAME` | `Simpsons Halloween` | Catalog name shown in Stremio |
-| `CACHE_DAYS` | `7` | How long the cached list is considered fresh |
-| `STILL_URL_TEMPLATE` | Metahub episode stills | Uses `{imdb}`, `{season}`, `{episode}`. Set to an empty string to use the show poster instead |
+| Variable | Required | Value in this repo | Notes |
+|---|---|---|---|
+| `TRAKT_USER` | Yes | `juicyj92` | Trakt username that owns the list |
+| `TRAKT_LIST` | Yes | `simpsons-halloween` | List slug |
+| `LIST_NAME` | Yes | `Simpsons Halloween` | Catalog name shown in Stremio |
+| `CACHE_DAYS` | No | `7` | How long the cached list is considered fresh. Defaults to `7` |
+| `STILL_URL_TEMPLATE` | No | Not set | Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |
+
+The Worker has no built-in values for the three required variables. If any is
+missing, every request returns HTTP 500 with a JSON error naming what is missing.
 
 ### Secrets (Worker → Settings → Variables and Secrets)
 
@@ -88,6 +91,8 @@ commit them. The addon does not use your Trakt Client *Secret*.
 1. Make sure the list is **Public**.
 2. Create an app at <https://trakt.tv/oauth/applications>
    (redirect URI: `urn:ietf:wg:oauth:2.0:oob`) and copy its **Client ID**.
+3. Set `TRAKT_USER`, `TRAKT_LIST` and `LIST_NAME` in `wrangler.toml` `[vars]`
+   to match your list.
 
 ### 2. Create the KV namespace
 
