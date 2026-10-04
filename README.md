@@ -16,6 +16,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 - [Setup and deployment](#setup-and-deployment)
 - [Installing in Stremio](#installing-in-stremio)
 - [Testing](#testing)
+- [Automated tests](#automated-tests)
 - [Refreshing the list early](#refreshing-the-list-early)
 - [Local development](#local-development)
 - [Limitations](#limitations)
@@ -48,6 +49,8 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 ```
 .
 ├── src/worker.js     # The whole addon: config, Trakt fetch, KV cache, routing
+├── test/             # Unit tests (node --test)
+├── .github/workflows # CI: runs the tests on pull requests
 ├── wrangler.toml     # Worker name, plain config vars, KV binding
 ├── package.json      # Wrangler dev dependency and npm scripts
 └── README.md
@@ -124,9 +127,47 @@ npx wrangler secret put REFRESH_TOKEN   # optional
 
 ## Installing in Stremio
 
-1. Open `https://<your-worker>.workers.dev/` to see the manifest URL.
-2. Add `https://<your-worker>.workers.dev/manifest.json` to Stremio, or to
-   AIOStreams as a catalog addon.
+This addon only provides the catalog and episode pages. To actually play
+episodes you also need a **stream addon** installed, such as AIOStreams.
+
+### Find your manifest URL
+
+Open `https://<your-worker>.workers.dev/` in a browser. The page shows:
+
+- the manifest URL: `https://<your-worker>.workers.dev/manifest.json`
+- a one-click install link: `stremio://<your-worker>.workers.dev/manifest.json`
+
+### Option A: one-click link (desktop)
+
+With the Stremio desktop app installed, open the `stremio://` link from the
+landing page. Stremio opens the addon page; click **Install**.
+
+### Option B: paste the URL (desktop, web or Android)
+
+1. Open Stremio (the app, or <https://web.stremio.com>) and sign in.
+2. Go to **Addons**.
+3. Paste the manifest URL into the search box at the top of the Addons page
+   and press Enter.
+4. Click **Install** on the addon that appears.
+
+Because addons are saved to your Stremio account, installing it once makes it
+available on every device signed in to that account.
+
+### Option C: through AIOStreams
+
+If you manage your addons with AIOStreams, add the manifest URL there as a
+**catalog** addon instead, and reinstall your AIOStreams manifest in Stremio
+if prompted.
+
+### Where to find it
+
+After installing, the **Simpsons Halloween** row (or whatever `LIST_NAME` is
+set to) appears on the Stremio **Board** and under **Discover → Series**.
+Open a tile, pick the single episode, and your stream addon lists sources.
+
+### Uninstalling
+
+Go to **Addons → Installed**, find the addon and click **Uninstall**.
 
 ## Testing
 
@@ -136,6 +177,19 @@ npx wrangler secret put REFRESH_TOKEN   # optional
    Streams should appear.
 4. Open one still image URL from the catalog output in a browser. If it
    returns 404, change `STILL_URL_TEMPLATE` or set it to an empty string.
+
+## Automated tests
+
+Unit tests live in `test/` and use Node's built-in test runner, so they need
+no extra dependencies. They mock Trakt and KV and cover the manifest, catalog,
+meta, refresh and cache paths, plus the missing-config error.
+
+```sh
+npm test
+```
+
+GitHub Actions runs them on every pull request and every push to `main`
+(see `.github/workflows/test.yml`).
 
 ## Refreshing the list early
 
