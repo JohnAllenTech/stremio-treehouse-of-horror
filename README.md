@@ -84,7 +84,7 @@ flowchart LR
 | `/catalog/series/trakt-episode-list.json` | The one tile for the list |
 | `/meta/series/halloween:list.json` | The tile's page: every episode in Trakt order |
 | `/status` | Episode count, where the list came from (cache or Trakt) and the last Trakt error. Use it when the catalog is empty |
-| `/refresh/<REFRESH_TOKEN>` | Optional. Forces a re-fetch from Trakt |
+| `/refresh/<your-refresh-token>` | Optional. Re-reads the Trakt list now instead of waiting for the cache to expire. See [Refreshing the list early](#refreshing-the-list-early) |
 
 ## Project layout
 
@@ -118,7 +118,7 @@ missing, every request returns HTTP 500 with a JSON error naming what is missing
 | Secret | Required | Notes |
 |---|---|---|
 | `TRAKT_CLIENT_ID` | Yes | Client ID of your Trakt API app |
-| `REFRESH_TOKEN` | No | Any long random string. Enables `/refresh/<token>` |
+| `REFRESH_TOKEN` | No | A password you make up for the refresh link. See [Refreshing the list early](#refreshing-the-list-early) |
 
 Store these as the **Secret** type so redeploys don't remove them, and never
 commit them. The addon does not use your Trakt Client *Secret*.
@@ -238,8 +238,31 @@ GitHub Actions runs them on every pull request and every push to `main`
 
 ## Refreshing the list early
 
-Either visit `/refresh/<REFRESH_TOKEN>`, or delete the KV entry
-`list:<user>:<list>` in the Cloudflare dashboard.
+The Worker re-reads the Trakt list from Trakt at most once every
+`CACHE_DAYS` (7). To pick up list changes sooner, use either option.
+
+### Option A: a refresh link (optional)
+
+`REFRESH_TOKEN` is not a Trakt or Cloudflare token. It is a password you
+make up, so that only you can trigger a refresh.
+
+1. Make up a long random string, for example with `openssl rand -hex 32`.
+2. Save it as a Worker secret named `REFRESH_TOKEN` (**Settings → Variables
+   and Secrets → Add**, type **Secret**, or `npx wrangler secret put REFRESH_TOKEN`).
+3. Whenever you change the list, open
+   `https://<your-worker>.workers.dev/refresh/<the string you made up>`.
+   It re-reads the list from Trakt and returns
+   `{"refreshed":true,"episodes":35}`.
+
+If `REFRESH_TOKEN` is not set, or the string in the link doesn't match, the
+link returns 404 and nothing happens. You can skip this entirely.
+
+### Option B: clear the cache
+
+In the Cloudflare dashboard go to **Storage & Databases → Workers KV →
+stremio-treehouse-of-horror-CACHE** and delete the key `list:<user>:<list>`
+(here `list:juicyj92:simpsons-halloween`). The next request fetches the list
+from Trakt again.
 
 ## Local development
 
