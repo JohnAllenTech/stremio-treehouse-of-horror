@@ -1,9 +1,10 @@
-// Stremio addon: shows each episode of a Trakt list as its own tile.
-// Each tile is a one-episode "series" that uses the real IMDb episode ID,
-// so stream addons (e.g. AIOStreams) resolve it like any normal episode.
+// Stremio addon: shows a Trakt list of episodes as one show.
+// Each episode uses its real IMDb episode ID, so stream addons
+// (e.g. AIOStreams) resolve it like any normal episode.
 
 const CATALOG_ID = 'trakt-episode-list';
 const ID_PREFIX = 'halloween:';
+const LIST_TILE_ID = `${ID_PREFIX}list`; // the one tile in the catalog
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -127,10 +128,6 @@ function artwork(c, it) {
     .replace('{episode}', it.number);
 }
 
-function tileId(it) {
-  return `${ID_PREFIX}${it.imdb}:${it.season}:${it.number}`;
-}
-
 function json(data, maxAge = 3600) {
   return new Response(JSON.stringify(data), {
     headers: {
@@ -141,30 +138,38 @@ function json(data, maxAge = 3600) {
   });
 }
 
-function buildMeta(c, it) {
-  const art = artwork(c, it);
-  const code = `S${pad(it.season)}E${pad(it.number)}`;
+const code = (it) => `S${pad(it.season)}E${pad(it.number)}`;
+const videoId = (it) => `${it.imdb}:${it.season}:${it.number}`; // real ID used for streams
+// Episodes as Stremio videos, numbered 1..n (season 1) in list order so
+// Stremio's next episode and binge watching follow the list. Each keeps its
+// real IMDb ID for streams; the real SxxEyy is in the overview.
+function buildVideos(c, playlist) {
+  return playlist.map((ep, i) => ({
+    id: videoId(ep),
+    title: ep.title || code(ep),
+    season: 1,
+    episode: i + 1,
+    released: ep.released || new Date(0).toISOString(),
+    overview: `${code(ep)}${ep.overview ? ' - ' + ep.overview : ''}`,
+    thumbnail: artwork(c, ep),
+  }));
+}
+
+// The one catalog tile: the whole list as a show.
+function buildListPreview(c, items) {
+  const first = items[0];
   return {
-    id: tileId(it),
+    id: LIST_TILE_ID,
     type: 'series',
-    name: it.title || code,
-    poster: art,
-    posterShape: 'landscape',
-    background: art,
-    description: `${it.show ? it.show + ' ' : ''}${code}${it.overview ? ' - ' + it.overview : ''}`,
-    releaseInfo: it.year ? String(it.year) : undefined,
-    videos: [
-      {
-        id: `${it.imdb}:${it.season}:${it.number}`, // real ID used for streams
-        title: it.title || code,
-        season: it.season,
-        episode: it.number,
-        released: it.released || new Date(0).toISOString(),
-        overview: it.overview || undefined,
-        thumbnail: art,
-      },
-    ],
+    name: c.listName,
+    poster: first ? `https://images.metahub.space/poster/medium/${first.imdb}/img` : undefined,
+    background: first ? `https://images.metahub.space/background/medium/${first.imdb}/img` : undefined,
+    description: `${items.length} episodes from the Trakt list ${c.user}/${c.list}, in list order.`,
   };
+}
+
+function buildListMeta(c, items) {
+  return { ...buildListPreview(c, items), videos: buildVideos(c, items) };
 }
 
 function manifest(c) {
@@ -172,7 +177,7 @@ function manifest(c) {
     id: `community.trakt.episodelist.${c.user}.${c.list}`.replace(/[^a-zA-Z0-9.]/g, ''),
     version: '1.0.0',
     name: `${c.listName} (Trakt)`,
-    description: 'One tile per episode from a Trakt list of episodes.',
+    description: 'A Trakt list of episodes as one show, in list order.',
     resources: ['catalog', 'meta'],
     types: ['series'],
     idPrefixes: [ID_PREFIX],
@@ -233,21 +238,15 @@ export default {
       return json({ refreshed: true, episodes: items.length }, 0);
     }
 
-    // Catalog: one tile per episode
+    // Catalog: one tile for the whole list
     if (parts[0] === 'catalog' && parts[1] === 'series' && parts[2] === CATALOG_ID) {
       const items = await getItems(env);
-      return json({ metas: items.map((it) => buildMeta(c, it)).map(({ videos, ...preview }) => preview) });
+      return json({ metas: items.length > 0 ? [buildListPreview(c, items)] : [] });
     }
 
-    // Meta: the one-episode series behind a tile
-    if (parts[0] === 'meta' && parts[1] === 'series' && parts[2]?.startsWith(ID_PREFIX)) {
-      const [imdb, season, number] = parts[2].slice(ID_PREFIX.length).split(':');
-      const items = await getItems(env);
-      const found = items.find(
-        (it) => it.imdb === imdb && String(it.season) === season && String(it.number) === number
-      );
-      const it = found || { imdb, season: Number(season), number: Number(number), };
-      return json({ meta: buildMeta(c, it) });
+    // Meta: the tile's page, listing every episode
+    if (parts[0] === 'meta' && parts[1] === 'series' && parts[2] === LIST_TILE_ID) {
+      return json({ meta: buildListMeta(c, await getItems(env)) });
     }
 
     return new Response('Not found', { status: 404, headers: CORS });
