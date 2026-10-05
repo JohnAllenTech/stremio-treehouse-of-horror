@@ -10,6 +10,7 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 
 ## Contents
 
+- [Architecture](#architecture)
 - [How it works](#how-it-works)
 - [Endpoints](#endpoints)
 - [Project layout](#project-layout)
@@ -22,6 +23,43 @@ It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 - [Local development](#local-development)
 - [Limitations](#limitations)
 - [License](#license)
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client["Stremio app"]
+        S[Stremio]
+    end
+
+    subgraph CF["Cloudflare"]
+        W["Worker<br/>/manifest.json<br/>/catalog/…<br/>/meta/series/halloween:list<br/>/status · /refresh"]
+        KV[("Workers KV<br/>CACHE<br/>list:&lt;user&gt;:&lt;list&gt;")]
+        SEC{{"Secret<br/>TRAKT_CLIENT_ID"}}
+    end
+
+    T["Trakt API<br/>/users/:user/lists/:list/items/episode"]
+    M["Metahub<br/>episode stills · show poster"]
+    A["AIOStreams<br/>(stream addon)"]
+
+    S -- "manifest, catalog, meta" --> W
+    W -- "read list (fresh for CACHE_DAYS, 7)" --> KV
+    W -- "on miss or stale: fetch list<br/>trakt-api-key + User-Agent" --> T
+    SEC -. "used as trakt-api-key" .-> W
+    T -- "episodes in rank order" --> W
+    W -- "write list (kept as fallback)" --> KV
+    S -- "thumbnail and poster URLs" --> M
+    S -- "streams for tt0096697:S:E<br/>(real IMDb episode IDs)" --> A
+```
+
+- **Stremio** asks the Worker for the manifest, the one catalog tile and the
+  tile's episode list. It loads thumbnails and posters straight from Metahub.
+- **The Worker** serves the list from **Workers KV** while it is younger than
+  `CACHE_DAYS`. Otherwise it fetches it from **Trakt** using the
+  `TRAKT_CLIENT_ID` secret, and stores the result. If Trakt fails, the last
+  stored copy is served.
+- **AIOStreams** (or any stream addon) never talks to this Worker. Stremio asks
+  it for streams using each episode's real IMDb ID, such as `tt0096697:2:3`.
 
 ## How it works
 
