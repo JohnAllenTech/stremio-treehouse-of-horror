@@ -15,7 +15,7 @@ CACHE_DAYS = "7"
 # Optional tile artwork (full https URLs). Leave unset to use the show's
 # Metahub poster and background.
 # POSTER_URL = "https://example.com/poster.jpg"
-# BACKGROUND_URL = "https://example.com/background.jpg"
+BACKGROUND_URL = "https://wallpaperaccess.com/full/5861439.jpg"
 
 # Weekly cache. KV namespace "stremio-treehouse-of-horror-CACHE".
 # To use your own, create one with: npx wrangler kv namespace create CACHE
