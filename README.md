@@ -108,6 +108,7 @@ flowchart LR
 | `TRAKT_LIST` | Yes | `simpsons-halloween` | List slug |
 | `LIST_NAME` | Yes | `Treehouse of Horror Collection` | Name of the addon, the catalog row and the tile in Stremio |
 | `CACHE_DAYS` | No | `7` | How long the cached list is considered fresh. Defaults to `7` |
+| `LIST_DESCRIPTION` | No | Generic line with the episode count and list | Summary shown on the tile's page in Stremio and as the addon's description |
 | `POSTER_URL` | No | Not set | Tile poster image (full `https://` URL). Unset: the show's Metahub poster. See [Custom tile artwork](#custom-tile-artwork) |
 | `BACKGROUND_URL` | No | Not set | Background behind the tile's page (full `https://` URL). Unset: the show's Metahub background |
 | `STILL_URL_TEMPLATE` | No | Not set | Episode thumbnails. Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |

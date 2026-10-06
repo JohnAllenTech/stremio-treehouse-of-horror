@@ -191,6 +191,16 @@ test('POSTER_URL and BACKGROUND_URL override the tile artwork', async () => {
   assert.equal(meta.body.meta.background, 'https://img.test/bg.jpg');
 });
 
+test('LIST_DESCRIPTION sets the tile and manifest description', async () => {
+  const env = makeEnv({ LIST_DESCRIPTION: 'Spooky summary.' });
+  const catalog = await get('/catalog/series/trakt-episode-list.json', env);
+  assert.equal(catalog.body.metas[0].description, 'Spooky summary.');
+  const meta = await get(LIST_META, env);
+  assert.equal(meta.body.meta.description, 'Spooky summary.');
+  const manifest = await get('/manifest.json', env);
+  assert.equal(manifest.body.description, 'Spooky summary.');
+});
+
 // ---------- Meta ----------
 test('the tile page lists every episode in Trakt order with real IMDb IDs', async () => {
   const { res, body } = await get(LIST_META);
