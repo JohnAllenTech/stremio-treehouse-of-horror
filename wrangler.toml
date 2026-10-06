@@ -9,6 +9,8 @@ compatibility_date = "2025-09-01"
 TRAKT_USER = "juicyj92"
 TRAKT_LIST = "simpsons-halloween"
 LIST_NAME = "Treehouse of Horror Collection"
+# Optional summary shown on the tile's page and the addon. Unset: a generic line.
+LIST_DESCRIPTION = "A binge-ready collection of The Simpsons' Halloween episodes, from the very first Treehouse of Horror to the latest, in watch order. Pick an episode and let autoplay carry you through the scares."
 CACHE_DAYS = "7"
 # Optional tile artwork (full https URLs). Leave unset to use the show's
 # Metahub poster and background.
