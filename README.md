@@ -106,12 +106,27 @@ flowchart LR
 |---|---|---|---|
 | `TRAKT_USER` | Yes | `juicyj92` | Trakt username that owns the list |
 | `TRAKT_LIST` | Yes | `simpsons-halloween` | List slug |
-| `LIST_NAME` | Yes | `Simpsons Halloween` | Name of the catalog row and the tile in Stremio |
+| `LIST_NAME` | Yes | `Treehouse of Horror Collection` | Name of the addon, the catalog row and the tile in Stremio |
 | `CACHE_DAYS` | No | `7` | How long the cached list is considered fresh. Defaults to `7` |
+| `POSTER_URL` | No | Not set | Tile poster image (full `https://` URL). Unset: the show's Metahub poster. See [Custom tile artwork](#custom-tile-artwork) |
+| `BACKGROUND_URL` | No | Not set | Background behind the tile's page (full `https://` URL). Unset: the show's Metahub background |
 | `STILL_URL_TEMPLATE` | No | Not set | Episode thumbnails. Uses `{imdb}`, `{season}`, `{episode}`. Defaults to Metahub episode stills; set to an empty string to use the show poster instead |
 
 The Worker has no built-in values for the three required variables. If any is
 missing, every request returns HTTP 500 with a JSON error naming what is missing.
+
+### Custom tile artwork
+
+1. Host your image somewhere with a public `https://` URL (for example a
+   GitHub repo's raw file URL, Imgur, or Cloudflare R2). A 2:3 portrait image,
+   such as 600×900, suits the poster; a wide 16:9 image suits the background.
+2. In `wrangler.toml`, uncomment `POSTER_URL` (and optionally `BACKGROUND_URL`)
+   and set it to that URL.
+3. Push to `main`. Cloudflare redeploys, and Stremio shows the new image the
+   next time it loads the catalog.
+
+Stremio adds " - Series" after the catalog row name, because the tile is a
+series. The addon can't change that.
 
 ### Secrets (Worker → Settings → Variables and Secrets)
 
@@ -204,7 +219,7 @@ if prompted.
 
 ### Where to find it
 
-After installing, the **Simpsons Halloween** row (or whatever `LIST_NAME` is
+After installing, the **Treehouse of Horror Collection** row (or whatever `LIST_NAME` is
 set to) appears on the Stremio **Board** and under **Discover → Series**, with
 one tile. Open it, pick an episode, and your stream addon lists sources.
 

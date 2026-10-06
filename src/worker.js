@@ -19,6 +19,9 @@ function getConfig(env) {
     user: env.TRAKT_USER,
     list: env.TRAKT_LIST,
     listName: env.LIST_NAME,
+    // Optional image URLs for the tile. Unset: the show's Metahub poster/background.
+    posterUrl: env.POSTER_URL,
+    backgroundUrl: env.BACKGROUND_URL,
     clientId: env.TRAKT_CLIENT_ID,
     cacheMs: days * 24 * 60 * 60 * 1000,
     // {imdb} {season} {episode} are replaced. Leave empty to use the show poster.
@@ -162,8 +165,9 @@ function buildListPreview(c, items) {
     id: LIST_TILE_ID,
     type: 'series',
     name: c.listName,
-    poster: first ? `https://images.metahub.space/poster/medium/${first.imdb}/img` : undefined,
-    background: first ? `https://images.metahub.space/background/medium/${first.imdb}/img` : undefined,
+    poster: c.posterUrl || (first ? `https://images.metahub.space/poster/medium/${first.imdb}/img` : undefined),
+    background:
+      c.backgroundUrl || (first ? `https://images.metahub.space/background/medium/${first.imdb}/img` : undefined),
     description: `${items.length} episodes from the Trakt list ${c.user}/${c.list}, in list order.`,
   };
 }
@@ -176,7 +180,7 @@ function manifest(c) {
   return {
     id: `community.trakt.episodelist.${c.user}.${c.list}`.replace(/[^a-zA-Z0-9.]/g, ''),
     version: '1.0.0',
-    name: `${c.listName} (Trakt)`,
+    name: c.listName,
     description: 'A Trakt list of episodes as one show, in list order.',
     resources: ['catalog', 'meta'],
     types: ['series'],
