@@ -14,7 +14,7 @@ LIST_DESCRIPTION = "A binge-ready collection of The Simpsons' Halloween episodes
 CACHE_DAYS = "7"
 # Optional tile artwork (full https URLs). Leave unset to use the show's
 # Metahub poster and background.
-# POSTER_URL = "https://example.com/poster.jpg"
+POSTER_URL = "https://imgs.search.brave.com/A-ZqRMMP5vmlJAw6JK8p0amTTwoVODjrZZkSt176Sug/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YXByb3h5LnR2dHJv/cGVzLm9yZy93aWR0/aC8xMjAwL2h0dHBz/Oi8vc3RhdGljLnR2/dHJvcGVzLm9yZy9w/bXdpa2kvcHViL2lt/YWdlcy90cmVlaG91/c2Vfb2ZfaG9ycm9y/LmpwZw"
 BACKGROUND_URL = "https://wallpaperaccess.com/full/5861439.jpg"
 
 # Weekly cache. KV namespace "stremio-treehouse-of-horror-CACHE".
