@@ -8,6 +8,8 @@ which collects The Simpsons "Treehouse of Horror" episodes.
 
 It runs on Cloudflare Workers and caches the Trakt list in Workers KV.
 
+![The tile's page in Stremio](docs/screenshots/episode-list.jpg)
+
 ## Contents
 
 - [Architecture](#architecture)
@@ -223,6 +225,14 @@ if prompted.
 After installing, the **Treehouse of Horror Collection** row (or whatever `LIST_NAME` is
 set to) appears on the Stremio **Board** and under **Discover → Series**, with
 one tile. Open it, pick an episode, and your stream addon lists sources.
+
+![The Treehouse of Horror Collection row on the Stremio Board, with one tile](docs/screenshots/catalog-tile.jpg)
+
+*The catalog row on the Board. Stremio adds " - Series" to the row name itself.*
+
+![The tile's page in Stremio, showing the summary, background and episode list](docs/screenshots/episode-list.jpg)
+
+*The tile's page: the summary, the background and every episode in list order.*
 
 ### Uninstalling
 
