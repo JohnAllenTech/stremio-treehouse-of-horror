@@ -101,7 +101,7 @@ test('manifest describes one series catalog from config', async () => {
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), '*');
   assert.equal(body.id, 'community.trakt.episodelist.someone.spooky');
-  assert.equal(body.name, 'Spooky List (Trakt)');
+  assert.equal(body.name, 'Spooky List');
   assert.deepEqual(body.resources, ['catalog', 'meta']);
   assert.deepEqual(body.idPrefixes, ['halloween:']);
   assert.deepEqual(body.catalogs, [{ type: 'series', id: 'trakt-episode-list', name: 'Spooky List' }]);
@@ -179,6 +179,16 @@ test('empty catalog when Trakt fails and nothing is cached', async () => {
   const { res, body } = await get('/catalog/series/trakt-episode-list.json');
   assert.equal(res.status, 200);
   assert.deepEqual(body.metas, []);
+});
+
+test('POSTER_URL and BACKGROUND_URL override the tile artwork', async () => {
+  const env = makeEnv({ POSTER_URL: 'https://img.test/poster.jpg', BACKGROUND_URL: 'https://img.test/bg.jpg' });
+  const catalog = await get('/catalog/series/trakt-episode-list.json', env);
+  assert.equal(catalog.body.metas[0].poster, 'https://img.test/poster.jpg');
+  assert.equal(catalog.body.metas[0].background, 'https://img.test/bg.jpg');
+  const meta = await get(LIST_META, env);
+  assert.equal(meta.body.meta.poster, 'https://img.test/poster.jpg');
+  assert.equal(meta.body.meta.background, 'https://img.test/bg.jpg');
 });
 
 // ---------- Meta ----------

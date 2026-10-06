@@ -8,8 +8,12 @@ compatibility_date = "2025-09-01"
 [vars]
 TRAKT_USER = "juicyj92"
 TRAKT_LIST = "simpsons-halloween"
-LIST_NAME = "Simpsons Halloween"
+LIST_NAME = "Treehouse of Horror Collection"
 CACHE_DAYS = "7"
+# Optional tile artwork (full https URLs). Leave unset to use the show's
+# Metahub poster and background.
+# POSTER_URL = "https://example.com/poster.jpg"
+# BACKGROUND_URL = "https://example.com/background.jpg"
 
 # Weekly cache. KV namespace "stremio-treehouse-of-horror-CACHE".
 # To use your own, create one with: npx wrangler kv namespace create CACHE
